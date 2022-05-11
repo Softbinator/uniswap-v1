@@ -1,1 +1,1 @@
-import "./greeter";
+import "./UniswapV1.deploy";
