@@ -77,6 +77,10 @@ function getChainConfig(chain: keyof typeof chainIds): NetworkUserConfig {
 }
 
 const config: HardhatUserConfig = {
+  docgen: {
+    path: "./docgen",
+    runOnCompile: process.env.RUN_DOCGEN == "TRUE" ? true : false,
+  },
   defaultNetwork: "hardhat",
   etherscan: {
     apiKey: {
