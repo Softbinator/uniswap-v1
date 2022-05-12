@@ -23,6 +23,9 @@ contract Exchange is ERC20 {
     /// @notice Factory contract that deploys the Exchange
     IFactory public factory;
 
+    /// @notice Event for adding liquidity
+    event LiquidityAdded(uint256 tokenAmount, uint256 ethAmount, uint256 liquidityTokens);
+
     /// @notice Error triggered when reserves are 0
     error InvalidReserves();
 
@@ -47,6 +50,9 @@ contract Exchange is ERC20 {
     /// @notice Error triggered when the address of the exchange is 0 or address(this)
     error InvalidExchangeAddress();
 
+    /// @notice Error triggered when the token sold to eth is less then 0
+    error InsufficientTokenSold();
+
     constructor(IERC20 _token) ERC20("LPUniswapV1", "LPUV1") {
         // bcs _token is of type IERC20, address 0 is reverted in this case??????
         if (_token == IERC20(address(0))) {
@@ -66,18 +72,20 @@ contract Exchange is ERC20 {
         if (getTokenSupply() == 0) {
             token.transferFrom(msg.sender, address(this), _tokenAmount);
             uint256 liquidity = address(this).balance;
+            emit LiquidityAdded(_tokenAmount, msg.value, liquidity);
             _mint(msg.sender, liquidity);
             return liquidity;
         } else {
             uint256 ethReserve = address(this).balance - msg.value;
             uint256 tokenReserve = getTokenSupply();
             uint256 neccessaryTokenAmount = (tokenReserve * msg.value) / ethReserve;
-            if (neccessaryTokenAmount < _tokenAmount) {
+            if (neccessaryTokenAmount > _tokenAmount) {
                 // Question por favor, what if I send 1 eth and 10000000 tokens??
                 revert InsufficientTokenAmount();
             }
             token.transferFrom(msg.sender, address(this), _tokenAmount);
             uint256 liquidity = (totalSupply() * msg.value) / ethReserve;
+            emit LiquidityAdded(_tokenAmount, msg.value, liquidity);
             _mint(msg.sender, liquidity);
             return liquidity;
         }
@@ -103,7 +111,7 @@ contract Exchange is ERC20 {
      * @notice Generic implementation of transfering tokens after eth conversion
      * @param _minTokens the minimum amount of tokens that should get from swap
      */
-    function ethToToken(address _to, uint256 _minTokens) private returns (uint256) {
+    function ethToToken(address _to, uint256 _minTokens) private {
         uint256 tokenBought = getAmount(msg.value, address(this).balance, getTokenSupply());
         if (tokenBought < _minTokens) {
             revert InsufficientOutputAmount();
@@ -117,6 +125,9 @@ contract Exchange is ERC20 {
      * @param _minEth the minimum amount of eth that should get from swap
      */
     function tokenToEthSwap(uint256 _tokenSold, uint256 _minEth) external {
+        if (_tokenSold <= 0) {
+            revert InsufficientTokenSold();
+        }
         uint256 ethBought = getAmount(_tokenSold, getTokenSupply(), address(this).balance);
         if (ethBought < _minEth) {
             revert InsufficientOutputAmount();
@@ -174,7 +185,7 @@ contract Exchange is ERC20 {
      * @param _outputReserve the total amount of the token own by the exchange that you want to buy = y
      * @dev Base Formula without fee : ∆y = ( y * ∆x) / ( x + ∆x ), where ∆y = the amount that you get when swapping
      * @dev Fee: amountWithFee = (∆x - fee) / 100
-     * @dev Formula with Fee: ∆y = (y * ∆x * 99) / (x * 100 + ∆x * 99)
+     * @dev Formula with Fee: ∆y = (y * ∆x * 99) / (x * 100 + ∆x * 99), fee = 1%
      * @dev Where numerator = (y * ∆x * 99)
      * @dev Where denominator = (x * 100 + ∆x * 99)
      */
@@ -217,10 +228,10 @@ contract Exchange is ERC20 {
      * @notice Returns the price depending of reserves of the exchange
      */
     function getPrice(uint256 _inputReserve, uint256 _outputReserve) public pure returns (uint256) {
-        if (_inputReserve <= 0 && _outputReserve <= 0) {
+        if (_inputReserve <= 0 || _outputReserve <= 0) {
             revert InvalidReserves();
         }
-        return (_inputReserve * 100) / _outputReserve; // why * 100 ?????
+        return (_inputReserve * 1000) / _outputReserve; // why * 1000 ????? cum decidem valoare buna ??
     }
 
     /**
