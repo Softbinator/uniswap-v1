@@ -1,17 +1,4 @@
-# Solidity Template
-
-My favorite setup for writing Solidity smart contracts.
-
-- [Hardhat](https://github.com/nomiclabs/hardhat): compile and run the smart contracts on a local development network
-- [TypeChain](https://github.com/ethereum-ts/TypeChain): generate TypeScript types for smart contracts
-- [Ethers](https://github.com/ethers-io/ethers.js/): renowned Ethereum library and wallet implementation
-- [Waffle](https://github.com/EthWorks/Waffle): tooling for writing comprehensive smart contract tests
-- [Solhint](https://github.com/protofire/solhint): linter
-- [Solcover](https://github.com/sc-forks/solidity-coverage): code coverage
-- [Prettier Plugin Solidity](https://github.com/prettier-solidity/prettier-plugin-solidity): code formatter
-
-This is a GitHub template, which means you can reuse it as many times as you want. You can do that by clicking the "Use this
-template" button at the top of the page.
+# Uniswap-V1 Replica
 
 ## Usage
 
@@ -24,6 +11,8 @@ Then, proceed with installing dependencies:
 
 ```sh
 yarn install
+yarn add hardhat
+yarn add hardhat-docgen
 ```
 
 ### Compile
@@ -31,7 +20,7 @@ yarn install
 Compile the smart contracts with Hardhat:
 
 ```sh
-$ yarn compile
+$ npx hardhat compile
 ```
 
 ### TypeChain
@@ -39,7 +28,7 @@ $ yarn compile
 Compile the smart contracts and generate TypeChain artifacts:
 
 ```sh
-$ yarn typechain
+$ yarn run typechain
 ```
 
 ### Lint Solidity
@@ -63,7 +52,7 @@ $ yarn lint:ts
 Run the Mocha tests:
 
 ```sh
-$ yarn test
+$ npx hardhat test
 ```
 
 ### Coverage
@@ -71,15 +60,8 @@ $ yarn test
 Generate the code coverage report:
 
 ```sh
-$ yarn coverage
-```
-
-### Report Gas
-
-See the gas usage per unit test and average gas per method call:
-
-```sh
-$ REPORT_GAS=true yarn test
+$ yarn add hardhat-coverage
+$ npx hardhat coverage --testfiles "./test"
 ```
 
 ### Clean
@@ -87,15 +69,35 @@ $ REPORT_GAS=true yarn test
 Delete the smart contract artifacts, the coverage reports and the Hardhat cache:
 
 ```sh
-$ yarn clean
+$ npx hardhat clean
 ```
 
 ### Deploy
 
-Deploy the contracts to Hardhat Network:
+Deploy the contracts to Rinkeby Network:
 
+Token Contract
 ```sh
-$ yarn deploy --greeting "Bonjour, le monde!"
+$ npx hardhat deploy:Token --network rinkeby
+```
+
+Factory Contract
+```sh
+$ npx hardhat deploy:Factory --network rinkeby
+```
+
+### Verify Contract
+
+Verify the contracts on Etherscan programatically:
+
+Token Contract
+```sh
+$ npx hardhat verify <address_of_the_deployed_token_contract> --network rinkeby <name_of_the_token> <symbol_of_the_token> 
+```
+
+Factory Contract
+```sh
+$ npx hardhat verify <address_of_the_deployed_factory_contract> --network rinkeby
 ```
 
 ## Syntax Highlighting
