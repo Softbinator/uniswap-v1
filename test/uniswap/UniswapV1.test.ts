@@ -21,7 +21,7 @@ describe("Exchange Tests", function () {
 
   beforeEach(async () => {
     // STHX = await SynthetixTokenFactory.deploy("SynthetixToken", "STHX");
-    Exchange = await ExchangeFactory.deploy("LpToken", "LP");
+    // Exchange = await ExchangeFactory.deploy();
   });
 
   it("Deploys correctly", async () => {});

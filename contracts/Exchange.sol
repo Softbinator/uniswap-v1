@@ -5,6 +5,13 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 /**
+ * @notice Factory interface
+ */
+interface IFactory {
+    function tokenToExchange(address _tokenAddress) external returns (address);
+}
+
+/**
  * @author Softbinator Technologies
  * @notice This Contract is build after Uniswap - V1
  * @dev The contract is ERC20 to implement LP tokens
@@ -12,6 +19,9 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 contract Exchange is ERC20 {
     /// @notice Interface for token
     IERC20 public token;
+
+    /// @notice Factory contract that deploys the Exchange
+    IFactory public factory;
 
     /// @notice Error triggered when reserves are 0
     error InvalidReserves();
@@ -31,13 +41,19 @@ contract Exchange is ERC20 {
     /// @notice Error triggered when the user request 0 LP
     error InvalidAmountToRemove();
 
-    constructor(
-        IERC20 _token,
-        string memory _name,
-        string memory _symbol
-    ) ERC20(_name, _symbol) {
+    /// @notice Error triggered when the address of token is address 0
+    error InvalidTokenAddress();
+
+    /// @notice Error triggered when the address of the exchange is 0 or address(this)
+    error InvalidExchangeAddress();
+
+    constructor(IERC20 _token) ERC20("LPUniswapV1", "LPUV1") {
         // bcs _token is of type IERC20, address 0 is reverted in this case??????
+        if (_token == IERC20(address(0))) {
+            revert InvalidTokenAddress();
+        }
         token = _token;
+        factory = IFactory(msg.sender);
     }
 
     /**
@@ -68,16 +84,31 @@ contract Exchange is ERC20 {
     }
 
     /**
-     * @notice Make the swap from eth to token
+     * @notice Make the swap from eth to token and send eth to msg.sender
      * @param _minTokens the minimum amount of tokens that should get from swap
      */
     function ethToTokenSwap(uint256 _minTokens) external payable {
+        ethToToken(msg.sender, _minTokens);
+    }
+
+    /**
+     * @notice Make the swap from eth to token and send eth to msg.sender
+     * @param _minTokens the minimum amount of tokens that should get from swap
+     */
+    function ethToTokenTransfer(address _to, uint256 _minTokens) external payable {
+        ethToToken(_to, _minTokens);
+    }
+
+    /**
+     * @notice Generic implementation of transfering tokens after eth conversion
+     * @param _minTokens the minimum amount of tokens that should get from swap
+     */
+    function ethToToken(address _to, uint256 _minTokens) private returns (uint256) {
         uint256 tokenBought = getAmount(msg.value, address(this).balance, getTokenSupply());
         if (tokenBought < _minTokens) {
             revert InsufficientOutputAmount();
         }
-
-        token.transfer(msg.sender, tokenBought);
+        token.transfer(_to, tokenBought);
     }
 
     /**
@@ -93,6 +124,28 @@ contract Exchange is ERC20 {
 
         token.transferFrom(msg.sender, address(this), _tokenSold);
         payable(msg.sender).transfer(ethBought);
+    }
+
+    /**
+     * @notice Make the swap from token1 to token2
+     * @param _tokenSold the amount of token1 to change
+     * @param _minTokenBought the minimum amount of token2 to receive
+     * @param _tokenAddress address of token2
+     * @dev Token1 is converted in eth, and then eth is converted to token2
+     */
+    function tokenToTokenSwap(
+        uint256 _tokenSold,
+        uint256 _minTokenBought,
+        address _tokenAddress
+    ) external {
+        address exchangeAddress = factory.tokenToExchange(_tokenAddress);
+
+        if (exchangeAddress == address(this) || exchangeAddress == address(0)) {
+            revert InvalidExchangeAddress();
+        }
+
+        uint256 _ethBought = getAmount(_tokenSold, getTokenSupply(), address(this).balance);
+        Exchange(exchangeAddress).ethToTokenTransfer{ value: _ethBought }(msg.sender, _minTokenBought);
     }
 
     /**
