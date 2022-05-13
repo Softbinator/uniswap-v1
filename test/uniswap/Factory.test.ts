@@ -99,4 +99,28 @@ describe("Factory Tests", function () {
 
     await expect(ExchangeContract.tokenToTokenSwap(100, 10, Token2.address)).to.be.revertedWith("InvalidReserves");
   });
+
+  it("Token1 to inexistent Token2 exchange", async () => {
+    const tx: ContractTransaction = await factory.createExchange(Token.address);
+    // await factory.createExchange(Token2.address);
+    const receipt: ContractReceipt = await tx.wait();
+    const exchangeInfo: any = receipt.events?.filter(x => x.event == "ExchangeCreated");
+    ExchangeContract = (await ethers.getContractAt("Exchange", exchangeInfo[0]["args"][0])) as Exchange;
+
+    await expect(ExchangeContract.tokenToTokenSwap(100, 10, Token2.address)).to.be.revertedWith(
+      "InvalidExchangeAddress",
+    );
+  });
+
+  it("Token1 to Token1 exchange", async () => {
+    const tx: ContractTransaction = await factory.createExchange(Token.address);
+    // await factory.createExchange(Token2.address);
+    const receipt: ContractReceipt = await tx.wait();
+    const exchangeInfo: any = receipt.events?.filter(x => x.event == "ExchangeCreated");
+    ExchangeContract = (await ethers.getContractAt("Exchange", exchangeInfo[0]["args"][0])) as Exchange;
+
+    await expect(ExchangeContract.tokenToTokenSwap(100, 10, Token.address)).to.be.revertedWith(
+      "InvalidExchangeAddress",
+    );
+  });
 });

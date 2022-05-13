@@ -34,6 +34,10 @@ describe("Exchange Tests Liquidity", function () {
     expect(await ExchangeContract.token()).to.be.equal(Token.address);
   });
 
+  it("Deploys with address 0 as token", async () => {
+    await expect(exchangeFactory.deploy(ethers.constants.AddressZero)).to.be.revertedWith("InvalidTokenAddress");
+  });
+
   it("Add liquidity when balance is empty", async () => {
     await expect(await Token.mint(user.address, 100))
       .to.emit(Token, "Transfer")
