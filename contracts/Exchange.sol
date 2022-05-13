@@ -26,6 +26,9 @@ contract Exchange is ERC20 {
     /// @notice Event for adding liquidity
     event LiquidityAdded(uint256 tokenAmount, uint256 ethAmount, uint256 liquidityTokens);
 
+    /// @notice Event for swaping 2 tokens
+    event TokenToToken(uint256 amountToken1);
+
     /// @notice Error triggered when reserves are 0
     error InvalidReserves();
 
@@ -156,7 +159,10 @@ contract Exchange is ERC20 {
         }
 
         uint256 _ethBought = getAmount(_tokenSold, getTokenSupply(), address(this).balance);
+        token.transferFrom(msg.sender, address(this), _tokenSold);
+
         Exchange(exchangeAddress).ethToTokenTransfer{ value: _ethBought }(msg.sender, _minTokenBought);
+        emit TokenToToken(_tokenSold);
     }
 
     /**

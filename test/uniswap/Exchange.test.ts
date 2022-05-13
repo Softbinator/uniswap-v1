@@ -223,10 +223,6 @@ describe("Exchange Tests", function () {
     expect(await ExchangeContract.getTokenSupply()).to.be.equal(ethers.utils.parseEther("300"));
   });
 
-  it("Token Supply", async () => {
-    expect(await ExchangeContract.getTokenSupply()).to.be.equal(ethers.utils.parseEther("300"));
-  });
-
   it("Get token amount by selling eth", async () => {
     expect(await ExchangeContract.getTokenAmount(ethers.utils.parseEther("100"))).to.be.equal("291176470588235294117");
   });
@@ -248,16 +244,6 @@ describe("Exchange Tests", function () {
     expect(await Token.balanceOf(user.address)).to.be.equal(ethers.utils.parseEther("100"));
   });
 
-  // TO DO
-  it("Remove liquidity after a swap", async () => {
-    await expect(ExchangeContract.removeLiquidity(ethers.utils.parseEther("1")))
-      .to.emit(ExchangeContract, "Transfer")
-      .withArgs(user.address, ethers.constants.AddressZero, ethers.utils.parseEther("1"));
-
-    expect(await ethers.provider.getBalance(ExchangeContract.address)).to.be.equal(ethers.utils.parseEther("2"));
-    expect(await Token.balanceOf(user.address)).to.be.equal(ethers.utils.parseEther("100"));
-  });
-
   it("Swap Token to Eth", async () => {
     await expect(await Token.mint(user.address, ethers.utils.parseEther("1")))
       .to.emit(Token, "Transfer")
@@ -268,6 +254,25 @@ describe("Exchange Tests", function () {
       .withArgs(user.address, ExchangeContract.address, ethers.utils.parseEther("1"));
 
     expect(await ethers.provider.getBalance(ExchangeContract.address)).to.be.equal("2990132562543606100");
+  });
+
+  it("Remove liquidity after a swap", async () => {
+    await expect(await Token.mint(user.address, ethers.utils.parseEther("1")))
+      .to.emit(Token, "Transfer")
+      .withArgs(ethers.constants.AddressZero, user.address, ethers.utils.parseEther("1"));
+
+    await expect(ExchangeContract.tokenToEthSwap(ethers.utils.parseEther("1"), 10))
+      .to.emit(Token, "Transfer")
+      .withArgs(user.address, ExchangeContract.address, ethers.utils.parseEther("1"));
+
+    expect(await ethers.provider.getBalance(ExchangeContract.address)).to.be.equal("2990132562543606100");
+
+    await expect(ExchangeContract.removeLiquidity(ethers.utils.parseEther("1")))
+      .to.emit(ExchangeContract, "Transfer")
+      .withArgs(user.address, ethers.constants.AddressZero, ethers.utils.parseEther("1"));
+
+    expect(await ethers.provider.getBalance(ExchangeContract.address)).to.be.equal("1993421708362404067");
+    expect(await Token.balanceOf(user.address)).to.be.equal("100333333333333333333");
   });
 
   it("Swap Token to Eth with 0 tokens", async () => {
