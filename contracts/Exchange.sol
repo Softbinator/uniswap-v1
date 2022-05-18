@@ -115,7 +115,7 @@ contract Exchange is ERC20 {
      * @param _minTokens the minimum amount of tokens that should get from swap
      */
     function ethToToken(address _to, uint256 _minTokens) private {
-        uint256 tokenBought = getAmount(msg.value, address(this).balance, getTokenSupply());
+        uint256 tokenBought = getAmount(msg.value, address(this).balance - msg.value, getTokenSupply());
         if (tokenBought < _minTokens) {
             revert InsufficientOutputAmount();
         }

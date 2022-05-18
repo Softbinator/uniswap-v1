@@ -228,7 +228,12 @@ describe("Exchange Tests", function () {
   });
 
   it("Get token amount by selling eth", async () => {
-    expect(await ExchangeContract.getTokenAmount(ethers.utils.parseEther("100"))).to.be.equal("291176470588235294117");
+    const tokenReserve: BigNumber = await ExchangeContract.getTokenSupply();
+    const ethReserve: BigNumber = await ethers.provider.getBalance(ExchangeContract.address);
+    const ethAmount: BigNumber = ethers.utils.parseEther("100");
+    const expectedToken: BigNumber = getAmountMockUp(ethAmount, ethReserve, tokenReserve);
+
+    expect(await ExchangeContract.getTokenAmount(ethers.utils.parseEther("100"))).to.be.equal(expectedToken);
   });
 
   it("Get token amount on invalid eth amount", async () => {
@@ -253,11 +258,16 @@ describe("Exchange Tests", function () {
       .to.emit(Token, "Transfer")
       .withArgs(ethers.constants.AddressZero, user.address, ethers.utils.parseEther("1"));
 
-    await expect(ExchangeContract.tokenToEthSwap(ethers.utils.parseEther("1"), 10))
-      .to.emit(Token, "Transfer")
-      .withArgs(user.address, ExchangeContract.address, ethers.utils.parseEther("1"));
+    const tokenReserve: BigNumber = await ExchangeContract.getTokenSupply();
+    const ethReserve: BigNumber = await ethers.provider.getBalance(ExchangeContract.address);
+    const tokenAmount: BigNumber = ethers.utils.parseEther("1");
+    const expectedEth: BigNumber = getAmountMockUp(tokenAmount, tokenReserve, ethReserve);
 
-    expect(await ethers.provider.getBalance(ExchangeContract.address)).to.be.equal("2990132562543606100");
+    await expect(ExchangeContract.tokenToEthSwap(tokenAmount, 10))
+      .to.emit(Token, "Transfer")
+      .withArgs(user.address, ExchangeContract.address, tokenAmount);
+
+    expect(await ethers.provider.getBalance(ExchangeContract.address)).to.be.equal(ethReserve.sub(expectedEth));
   });
 
   it("Remove liquidity after a swap", async () => {
@@ -265,18 +275,31 @@ describe("Exchange Tests", function () {
       .to.emit(Token, "Transfer")
       .withArgs(ethers.constants.AddressZero, user.address, ethers.utils.parseEther("1"));
 
+    var ethReserve: BigNumber = await ethers.provider.getBalance(ExchangeContract.address);
+    var tokenReserve: BigNumber = await ExchangeContract.getTokenSupply();
+    const tokenAmount: BigNumber = ethers.utils.parseEther("1");
+    const expectedEth: BigNumber = getAmountMockUp(tokenAmount, tokenReserve, ethReserve);
+
     await expect(ExchangeContract.tokenToEthSwap(ethers.utils.parseEther("1"), 10))
       .to.emit(Token, "Transfer")
       .withArgs(user.address, ExchangeContract.address, ethers.utils.parseEther("1"));
 
-    expect(await ethers.provider.getBalance(ExchangeContract.address)).to.be.equal("2990132562543606100");
+    expect(await ethers.provider.getBalance(ExchangeContract.address)).to.be.equal(ethReserve.sub(expectedEth));
 
-    await expect(ExchangeContract.removeLiquidity(ethers.utils.parseEther("1")))
+    ethReserve = await ethers.provider.getBalance(ExchangeContract.address);
+    tokenReserve = await ExchangeContract.getTokenSupply();
+    const liquidityAmount: BigNumber = ethers.utils.parseEther("1");
+    const liquidityReserve: BigNumber = await ExchangeContract.totalSupply();
+    await expect(ExchangeContract.removeLiquidity(liquidityAmount))
       .to.emit(ExchangeContract, "Transfer")
-      .withArgs(user.address, ethers.constants.AddressZero, ethers.utils.parseEther("1"));
+      .withArgs(user.address, ethers.constants.AddressZero, liquidityAmount);
 
-    expect(await ethers.provider.getBalance(ExchangeContract.address)).to.be.equal("1993421708362404067");
-    expect(await Token.balanceOf(user.address)).to.be.equal("100333333333333333333");
+    const tokenRemoved: BigNumber = tokenReserve.mul(liquidityAmount).div(liquidityReserve);
+    const ethRemoved: BigNumber = ethReserve.mul(liquidityAmount).div(liquidityReserve);
+
+    expect(await ethers.provider.getBalance(ExchangeContract.address)).to.be.equal(ethReserve.sub(ethRemoved));
+    expect(await Token.balanceOf(user.address)).to.be.equal(tokenRemoved);
+    expect(await Token.balanceOf(ExchangeContract.address)).to.be.equal(tokenReserve.sub(tokenRemoved));
   });
 
   it("Swap Token to Eth with 0 tokens", async () => {
@@ -296,9 +319,14 @@ describe("Exchange Tests", function () {
   });
 
   it("Swap Eth to Token", async () => {
-    await expect(ExchangeContract.ethToTokenSwap(10, { value: ethers.utils.parseEther("1") }))
+    const tokenReserve: BigNumber = await ExchangeContract.getTokenSupply();
+    const ethReserve: BigNumber = await ethers.provider.getBalance(ExchangeContract.address);
+    const ethAmount: BigNumber = ethers.utils.parseEther("1");
+    const expectedToken: BigNumber = getAmountMockUp(ethAmount, ethReserve, tokenReserve);
+
+    await expect(ExchangeContract.ethToTokenSwap(10, { value: ethAmount }))
       .to.emit(Token, "Transfer")
-      .withArgs(ExchangeContract.address, user.address, "59519038076152304609");
+      .withArgs(ExchangeContract.address, user.address, expectedToken);
   });
 
   it("Swap Eth to Token with topkenBought less then minToken", async () => {
@@ -308,9 +336,14 @@ describe("Exchange Tests", function () {
   });
 
   it("Transfer Eth to Token", async () => {
-    await expect(ExchangeContract.ethToTokenTransfer(bob.address, 10, { value: ethers.utils.parseEther("1") }))
+    const tokenReserve: BigNumber = await ExchangeContract.getTokenSupply();
+    const ethReserve: BigNumber = await ethers.provider.getBalance(ExchangeContract.address);
+    const ethAmount: BigNumber = ethers.utils.parseEther("1");
+    const expectedToken: BigNumber = getAmountMockUp(ethAmount, ethReserve, tokenReserve);
+
+    await expect(ExchangeContract.ethToTokenTransfer(bob.address, 10, { value: ethAmount }))
       .to.emit(Token, "Transfer")
-      .withArgs(ExchangeContract.address, bob.address, "59519038076152304609");
+      .withArgs(ExchangeContract.address, bob.address, expectedToken);
   });
 
   it("Transfer Eth to Token with topkenBought less then minToken", async () => {
@@ -321,3 +354,11 @@ describe("Exchange Tests", function () {
     ).to.be.revertedWith("InsufficientOutputAmount");
   });
 });
+
+function getAmountMockUp(inputAmount: BigNumber, inputReserve: BigNumber, outputReserve: BigNumber) {
+  const inputAmountWithFee: BigNumber = inputAmount.mul(99);
+  const numerator: BigNumber = inputAmountWithFee.mul(outputReserve);
+  const denominator: BigNumber = inputReserve.mul(100).add(inputAmountWithFee);
+
+  return numerator.div(denominator);
+}

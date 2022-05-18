@@ -1,7 +1,7 @@
 import { Listener } from "@ethersproject/providers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { expect } from "chai";
-import { BigNumber, ContractReceipt, ContractTransaction } from "ethers";
+import { BigNumber, ContractReceipt, ContractTransaction, providers } from "ethers";
 import { ethers } from "hardhat";
 
 import { Exchange, Exchange__factory, Factory, Factory__factory, Token, Token__factory } from "../../typechain";
@@ -82,12 +82,23 @@ describe("Factory Tests", function () {
       .to.emit(ExchangeContract2, "LiquidityAdded")
       .withArgs(100, ethers.utils.parseEther("1"), ethers.utils.parseEther("1"));
 
+    let ethAmount: BigNumber = getAmountMockUp(
+      ethers.utils.parseEther("0.00000000000000001"),
+      await Token.balanceOf(user.address),
+      await ethers.provider.getBalance(ExchangeContract.address),
+    );
+
+    let re2 = getAmountMockUp(
+      ethAmount,
+      await ethers.provider.getBalance(ExchangeContract2.address),
+      await Token.balanceOf(user.address),
+    );
     await expect(ExchangeContract.tokenToTokenSwap(10, 1, Token2.address))
       .to.emit(ExchangeContract, "TokenToToken")
       .withArgs(10);
 
     expect(await Token.balanceOf(user.address)).to.be.equal(90);
-    expect(await Token2.balanceOf(user.address)).to.be.equal(7);
+    expect(await Token2.balanceOf(user.address)).to.be.equal(re2);
   });
 
   it("Token1 to Token2 swap without Token2 in the Exchange contract", async () => {
@@ -124,3 +135,11 @@ describe("Factory Tests", function () {
     );
   });
 });
+
+function getAmountMockUp(inputAmount: BigNumber, inputReserve: BigNumber, outputReserve: BigNumber) {
+  const inputAmountWithFee: BigNumber = inputAmount.mul(99);
+  const numerator: BigNumber = outputReserve.mul(inputAmountWithFee);
+  const denominator: BigNumber = inputReserve.mul(100).add(inputAmountWithFee);
+
+  return numerator.div(denominator);
+}
